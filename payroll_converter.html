@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GGC Payroll Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .app-header {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 14px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .app-header h1 {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .app-header h1 span {
+            color: #4fc3f7;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 9px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-upload {
+            background: #2e7d32;
+            color: #fff;
+        }
+
+        .btn-upload:hover {
+            background: #1b5e20;
+            transform: translateY(-1px);
+        }
+
+        .btn-download {
+            background: #1565c0;
+            color: #fff;
+        }
+
+        .btn-download:hover:not(:disabled) {
+            background: #0d47a1;
+            transform: translateY(-1px);
+        }
+
+        .btn-download:disabled {
+            background: #455a64;
+            color: #90a4ae;
+            cursor: not-allowed;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .workspace {
+            display: flex;
+            gap: 14px;
+            height: calc(100vh - 108px);
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-left {
+            flex: 0 0 260px;
+        }
+
+        .panel-right {
+            flex: 1;
+        }
+
+        .panel-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 11px;
+            font-weight: 700;
+            color: #81d4fa;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .badge {
+            background: #1565c0;
+            color: #fff;
+            border-radius: 20px;
+            padding: 1px 8px;
+            font-size: 11px;
+        }
+
+        .emp-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .emp-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 8px 11px;
+            margin-bottom: 7px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .emp-card:hover {
+            background: rgba(79, 195, 247, 0.12);
+            border-color: #4fc3f7;
+        }
+
+        .emp-card.active {
+            background: rgba(79, 195, 247, 0.2);
+            border-color: #4fc3f7;
+        }
+
+        .emp-name {
+            color: #e1f5fe;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .emp-id {
+            color: #78909c;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .preview-scroll {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .no-data {
+            color: rgba(255, 255, 255, 0.35);
+            font-style: italic;
+            text-align: center;
+            margin-top: 60px;
+            font-size: 13px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 3px;
+        }
+
+        /* ═══ PAYSLIP ═══ */
+        .payslip {
+            width: 820px;
+            background: #fff;
+            border: 1.5px solid #000;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 8.5px;
+            color: #000;
+            padding: 7px 9px;
+            line-height: 1.3;
+        }
+
+        .ps-title {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 1.5px solid #000;
+            padding-bottom: 3px;
+            margin-bottom: 3px;
+            letter-spacing: 1.5px;
+        }
+
+        .ps-top {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5px;
+            margin-bottom: 3px;
+        }
+
+        .ps-top td {
+            padding: 1px 3px;
+            vertical-align: top;
+        }
+
+        .lbl {
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .ps-ids {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8px;
+            border-top: 0.5px solid #000;
+            border-bottom: 0.5px solid #000;
+            margin-bottom: 3px;
+        }
+
+        .ps-ids td {
+            padding: 2px 3px;
+        }
+
+        .ps-rate {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5px;
+            border-bottom: 0.5px solid #000;
+            margin-bottom: 4px;
+        }
+
+        .ps-rate td {
+            padding: 2px 3px;
+        }
+
+        .ps-body {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            font-size: 8px;
+        }
+
+        .ps-body th {
+            background: #e0e0e0;
+            font-weight: bold;
+            text-align: center;
+            border: 0.5px solid #000;
+            padding: 2px 3px;
+            font-size: 8px;
+        }
+
+        .ps-body td {
+            border: 0.5px solid #000;
+            vertical-align: top;
+            padding: 0;
+        }
+
+        .inner {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .inner td {
+            padding: 1px 3px;
+            border-bottom: 0.5px dotted #ccc;
+            font-size: 8px;
+        }
+
+        .inner tr:last-child td {
+            border-bottom: none;
+        }
+
+        .inner .r {
+            text-align: right;
+        }
+
+        .inner .hdr {
+            font-weight: bold;
+            font-size: 7.5px;
+            background: #f5f5f5;
+            border-bottom: 0.5px solid #000 !important;
+        }
+
+        .inner .total {
+            font-weight: bold;
+            background: #eeeeee;
+            border-top: 1px solid #000 !important;
+            border-bottom: none !important;
+        }
+
+        .net-box {
+            border: 1.5px solid #000;
+            margin: 5px 3px 3px 3px;
+            padding: 4px;
+            text-align: center;
+        }
+
+        .net-label {
+            font-weight: bold;
+            font-size: 8px;
+        }
+
+        .net-amt {
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 3px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .app-header,
+            .workspace {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-header">
+        <h1>🧾 GGC <span>Payroll</span> Converter</h1>
+        <div class="controls">
+            <button class="btn btn-upload" onclick="triggerUpload()">📤 Upload .htm File</button>
+            <button class="btn btn-download" id="downloadBtn" onclick="downloadAll()" disabled>💾 Download All
+                Payslips</button>
+        </div>
+        <input type="file" id="fileInput" accept=".htm,.html" onchange="handleUpload(event)">
+    </div>
+
+    <div class="workspace">
+        <div class="panel panel-left">
+            <div class="panel-header">📋 Employees <span class="badge" id="empCount">0</span></div>
+            <div class="emp-list" id="empList">
+                <div class="no-data">Upload a .htm file</div>
+            </div>
+        </div>
+        <div class="panel panel-right">
+            <div class="panel-header">👁 Payslip Preview</div>
+            <div class="preview-scroll" id="previewArea">
+                <div class="no-data">Select an employee to preview</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        let allEmployees = [];
+        let currentIdx = 0;
+
+        function triggerUpload() { document.getElementById('fileInput').click(); }
+
+        function handleUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                allEmployees = parseHTM(ev.target.result);
+                renderList();
+                document.getElementById('empCount').textContent = allEmployees.length;
+                if (allEmployees.length > 0) {
+                    selectEmp(0);
+                    document.getElementById('downloadBtn').disabled = false;
+                }
+            };
+            reader.readAsText(file, 'windows-1252');
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           PARSE: Split the single flat TABLE into per-employee blocks.
+           Each block starts at a <B>NAME</B> occurrence in the HTML.
+           ═══════════════════════════════════════════════════════════ */
+        function parseHTM(raw) {
+            const anchors = [];
+            const rx = /<B>NAME<\/B>/gi;
+            let m;
+            while ((m = rx.exec(raw)) !== null) anchors.push(m.index);
+            if (anchors.length === 0) return [parseBlock(raw)].filter(Boolean);
+            return anchors
+                .map((start, i) => raw.slice(start, anchors[i + 1] || raw.length))
+                .map(parseBlock)
+                .filter(Boolean);
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           HELPERS
+           ═══════════════════════════════════════════════════════════ */
+
+        /** Strip HTML tags and collapse whitespace. */
+        function st(s) { return (s || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+        /** First match value (last capture group). */
+        function grab(block, rx) {
+            const m = block.match(rx);
+            return m ? st(m[m.length - 1]) : '';
+        }
+
+        /**
+         * For labels that appear on one TR and whose value is on the NEXT TR:
+         *   Find labelRx in block → find next </TR> → find the following </TR>
+         *   Return first ALIGN=RIGHT number in that row.
+         */
+        function grabNextRow(block, labelRx) {
+            const pos = block.search(labelRx);
+            if (pos < 0) return '';
+            const trEnd1 = block.indexOf('</TR>', pos);
+            if (trEnd1 < 0) return '';
+            const rowStart = trEnd1 + 5;
+            const trEnd2 = block.indexOf('</TR>', rowStart);
+            if (trEnd2 < 0) return '';
+            const tr = block.slice(rowStart, trEnd2);
+            const m = tr.match(/ALIGN=RIGHT[^>]*>(-?[\d,]+\.[\d]{2})<\/DIV>/i);
+            return m ? m[1] : '';
+        }
+
+        /**
+         * For deductions: the label appears on one TR; the amount cell is
+         * in the SAME row (not the next) — it appears to the right in the
+         * same <TR> and is the FIRST ALIGN=RIGHT after the label text.
+         */
+        function grabSameRow(block, labelRx) {
+            const pos = block.search(labelRx);
+            if (pos < 0) return '';
+            const trEnd = block.indexOf('</TR>', pos);
+            if (trEnd < 0) return '';
+            const tr = block.slice(pos, trEnd);
+            const m = tr.match(/ALIGN=RIGHT[^>]*>(-?[\d,]+\.[\d]{2})<\/DIV>/i);
+            return m ? m[1] : '';
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           PARSE ONE EMPLOYEE BLOCK
+           ═══════════════════════════════════════════════════════════ */
+        function parseBlock(block) {
+            // ── Name ──
+            const nameM = block.match(/<B>NAME<\/B>[\s\S]{0,300}?<B>([A-Z][A-Z ,.\-']+)<\/B>/i);
+            const name = nameM ? nameM[1].trim() : '';
+            if (!name) return null;
+
+            // ── IDNO ──
+            const idM = block.match(/<B>IDNO\s*#<\/B>[\s\S]{0,400}?<B>(\d{4,8})<\/B>/i);
+            const idNo = idM ? idM[1] : '';
+
+            // ── DIV-DEPT (first bold code after DIV-DEPT label) ──
+            const deptM = block.match(/<B>DIV-DEPT<\/B>[\s\S]{0,600}?<B>([A-Z0-9\-]+)<\/B>/i);
+            const divDept = deptM ? deptM[1] : '';
+
+            // ── Second SERV code ──
+            const servAll = [...block.matchAll(/<B>(SERV\d+)<\/B>/gi)];
+            const serv2 = servAll.length > 1 ? servAll[1][1] : (servAll[0] ? servAll[0][1] : '');
+
+            // ── Period number ──
+            const periodNumM = block.match(/<B>PERIOD<\/B>[\s\S]{0,500}?<B>(\d{6})<\/B>/i);
+            const periodNum = periodNumM ? periodNumM[1] : '';
+
+            // ── Period date range ──
+            const periodDateM = block.match(/<B>(\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4})<\/B>/i);
+            const periodDate = periodDateM ? periodDateM[1] : '';
+
+            // ── Date stamp ──
+            const dsM = block.match(/ALIGN=RIGHT>((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[^<]+)<\/DIV>/i);
+            const dateStamp = dsM ? dsM[1].trim() : '';
+
+            // ── TIN ──  (first plain number after "# :" in TIN section)
+            const tinM = block.match(/\bTIN\b[\s\S]{0,500}?<FONT[^>]*>(\d{7,12})<\/FONT>/i);
+            const tinNum = tinM ? tinM[1] : '';
+
+            // ── SSS ──
+            const sssM = block.match(/\bSSS\b[\s\S]{0,500}?COLSPAN=10[^>]*>[^<]*<FONT[^>]*>(\d{9,12})<\/FONT>/i);
+            const sssNum = sssM ? sssM[1] : '';
+
+            // ── PHTH ──
+            const phthM = block.match(/\bPHTH\b[\s\S]{0,500}?COLSPAN=10[^>]*>[^<]*<FONT[^>]*>(\d{11,13})<\/FONT>/i);
+            const phthNum = phthM ? phthM[1] : '';
+
+            // ── HDMF ──
+            const hdmfM = block.match(/\bHDMF\b[\s\S]{0,500}?COLSPAN=10[^>]*>[^<]*<FONT[^>]*>(\d{11,13})<\/FONT>/i);
+            const hdmfNum = hdmfM ? hdmfM[1] : '';
+
+            // ── RATE — plain text on the NEXT TR (same structure as ACCT# & TAXCODE) ──
+            const rate = (function () {
+                const pos = block.search(/\bRATE\b/i);
+                if (pos < 0) return '';
+                const tr1End = block.indexOf('</TR>', pos);
+                if (tr1End < 0) return '';
+                const tr2Start = tr1End + 5;
+                const tr2End = block.indexOf('</TR>', tr2Start);
+                if (tr2End < 0) return '';
+                const tr = block.slice(tr2Start, tr2End);
+                const m = tr.match(/<FONT[^>]*>([\d,]+\.\d{2})<\/FONT>/i);
+                return m ? m[1] : '';
+            })();
+
+            // ── ACCT# — value is plain text on the NEXT TR after the <B>ACCT#</B> label ──
+            const acct = (function () {
+                const pos = block.search(/\bACCT#/i);
+                if (pos < 0) return '';
+                const tr1End = block.indexOf('</TR>', pos);
+                if (tr1End < 0) return '';
+                const tr2Start = tr1End + 5;
+                const tr2End = block.indexOf('</TR>', tr2Start);
+                if (tr2End < 0) return '';
+                const tr = block.slice(tr2Start, tr2End);
+                // Value is in a plain <FONT> tag (no ALIGN=RIGHT), just digits
+                const m = tr.match(/<FONT[^>]*>(\d{7,14})<\/FONT>/i);
+                return m ? m[1] : '';
+            })();
+
+            // ── TAXCODE — plain text on the NEXT TR after the label (same structure as ACCT#) ──
+            const taxCode = (function () {
+                const pos = block.search(/TAXCODE:/i);
+                if (pos < 0) return '';
+                const tr1End = block.indexOf('</TR>', pos);
+                if (tr1End < 0) return '';
+                const tr2Start = tr1End + 5;
+                const tr2End = block.indexOf('</TR>', tr2Start);
+                if (tr2End < 0) return '';
+                const tr = block.slice(tr2Start, tr2End);
+                const m = tr.match(/<FONT[^>]*>([A-Z0-9][A-Z0-9\-]{0,10})<\/FONT>/i);
+                return m ? m[1] : '';
+            })();
+
+            /* ─────────────────────────────────────────────────────
+               LABOR ITEMS
+               Structure in the HTM:
+                 Row N:   >REGPAY</FONT></TD></TR>
+                 Row N+1: ...ALIGN=RIGHT>80.00</DIV>...ALIGN=RIGHT>4,520.00</DIV>...
+               So after finding the label we skip to the NEXT </TR>,
+               then grab the first two ALIGN=RIGHT numbers in the row AFTER that.
+               ───────────────────────────────────────────────────── */
+            const LABOR_LABELS = [
+                'REGPAY', 'ABSENT', 'REGOT', 'REGNP', 'REGNPOT',
+                'LEGAL', 'LEGOT', 'LEGNP', 'LEGNPOT',
+                'SPECIAL', 'SPLOT', 'SPCLNP', 'SPCLNPOT',
+                'RESTDAY', 'RSTOT', 'RSTNP', 'RSTNPOT',
+                'RSTLEG', 'RSTLEGOT', 'RSTLEGNP', 'RSTLEGNPOT',
+                'RSTSPL', 'RSTSPLOT', 'RSTSPLNP', 'RSTSPLNPOT'
+            ];
+
+            const laborItems = LABOR_LABELS.map(lbl => {
+                const pos = block.search(new RegExp('>' + lbl + '<\\/FONT>', 'i'));
+                if (pos < 0) return { lbl, hrs: '', amt: '' };
+
+                // end of the label's TR
+                const tr1End = block.indexOf('</TR>', pos);
+                if (tr1End < 0) return { lbl, hrs: '', amt: '' };
+
+                // start of next TR
+                const tr2Start = tr1End + 5;
+                const tr2End = block.indexOf('</TR>', tr2Start);
+                if (tr2End < 0) return { lbl, hrs: '', amt: '' };
+
+                // Limit TR to first ~400 chars — labor column HRS/AMT appear early (left side).
+                // Right-side COLA/13TH values appear later in the same TR (due to ROWSPAN layout).
+                const trWide = block.slice(tr2Start, tr2End);
+                const tr = trWide.slice(0, Math.min(trWide.length, 400));
+
+                const nums = [...tr.matchAll(/ALIGN=RIGHT[^>]*>(-?[\d,]+\.[\d]{2})<\/DIV>/gi)];
+                return {
+                    lbl,
+                    hrs: nums[0] ? nums[0][1] : '',
+                    amt: nums[1] ? nums[1][1] : ''
+                };
+            });
+
+            /* ─────────────────────────────────────────────────────
+               TOTALS & ALLOWANCES  (same TR-skip pattern)
+               ───────────────────────────────────────────────────── */
+            const totalA = grabNextRow(block, /TOTAL\s*-\s*A\s*=/i);
+            // ADDBACK, COLA, 13TH — label + value are in the SAME <TR>
+            const addback = grabSameRow(block, /ADDBACK/i);
+            const totalB = grabNextRow(block, /TOTAL\s*-\s*B\s*=/i);
+            const cola = grabSameRow(block, /\bCOLA\b/i);
+            const thirteenth = grabSameRow(block, /\b13TH\b/i);
+            const totalC = grabNextRow(block, /TOTAL\s*-\s*C\s*=/i);
+
+            /* ─────────────────────────────────────────────────────
+               DEDUCTIONS
+               Each deduction label is on one TR; its ALIGN=RIGHT value
+               is on the NEXT TR (same pattern as labor items / totals).
+               ───────────────────────────────────────────────────── */
+            const sssPrem = grabNextRow(block, /SSS\s*PREMIUM/i);
+            const phthPrem = grabNextRow(block, /PHEALTH\s*PREMIUM/i);
+            const hdmfPrem = grabNextRow(block, /HDMF\s*PREMIUM/i);
+            const taxWith = grabNextRow(block, /TAX\s*WITHHELD/i);
+            const sssSalLoan = grabNextRow(block, /SSS\s*SAL[\s\-]?LOAN/i);
+            const sssCalLoan = grabNextRow(block, /SSS\s*CAL[\s\-]?LOAN/i);
+            const hdmfSalLoan = grabNextRow(block, /HDMF\s*SAL[\s\-]?LOAN/i);
+            const hdmfHouLoan = grabNextRow(block, /HDMF\s*HOU[\s\-]?LOAN/i);
+            const compLoan = grabNextRow(block, /COMP\s*REG[\s\-]?LOAN/i);
+            const compOthLoan = grabNextRow(block, /COMP\s*OTH[\s\-]?LOAN/i);
+            const multiOther = grabNextRow(block, /MULTIPLE\s*OTHER/i);
+            const sharedBen = grabNextRow(block, /SHARED\s*BENEFITS/i);
+            const salaryAdv = grabNextRow(block, /SALARY\s*ADVANCES/i);
+            const totalD = grabSameRow(block, /TOTAL\s*-\s*D\s*=/i);
+
+            /* ─────────────────────────────────────────────────────
+               LEAVE BALANCES
+               VL, SL, DOC appear as labels; their numbers are to the
+               right in the same row.
+               ───────────────────────────────────────────────────── */
+            const vlBal = grabSameRow(block, /\bVL\b/i);
+            const slBal = grabSameRow(block, /\bSL\b/i);
+            const docBal = grabSameRow(block, /\bDOC\b/i);
+
+            /* ─────────────────────────────────────────────────────
+               NET PAY
+               The net is printed with Courier New SIZE=3 CENTER tags:
+                 <FONT FACE="Courier New" SIZE=3><B><CENTER>4,869.11</CENTER>
+               ───────────────────────────────────────────────────── */
+            const netM = block.match(/A\+B\+C-D[\s\S]{0,3000}?<FONT[^>]*Courier[^>]*>[\s\S]{0,60}?<CENTER>(-?[\d,]+\.[\d]{2})<\/CENTER>/i);
+            const netPay = netM ? netM[1] : '';
+
+            /* ─────────────────────────────────────────────────────
+               LOAN PAYMENTS  (HDMF-H, HDMF-S, SSS-C)
+               ───────────────────────────────────────────────────── */
+            const hdmfHPmt = grabSameRow(block, /HDMF[\s\-]H\b/i);
+            const hdmfSPmt = grabSameRow(block, /HDMF[\s\-]S\b/i);
+            const sssCPmt = grabSameRow(block, /SSS[\s\-]C\b/i);
+
+            return {
+                name, idNo, divDept, serv2,
+                periodNum, periodDate, dateStamp,
+                tinNum, sssNum, phthNum, hdmfNum,
+                rate, acct, taxCode,
+                laborItems,
+                totalA, addback, totalB,
+                cola, thirteenth, totalC,
+                sssPrem, phthPrem, hdmfPrem, taxWith,
+                sssSalLoan, sssCalLoan, hdmfSalLoan, hdmfHouLoan,
+                compLoan, compOthLoan, multiOther, sharedBen, salaryAdv, totalD,
+                vlBal, slBal, docBal,
+                netPay,
+                hdmfHPmt, hdmfSPmt, sssCPmt
+            };
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           UI helpers
+           ═══════════════════════════════════════════════════════════ */
+        function renderList() {
+            const el = document.getElementById('empList');
+            if (!allEmployees.length) { el.innerHTML = '<div class="no-data">No employees found</div>'; return; }
+            el.innerHTML = allEmployees.map((e, i) => `
+        <div class="emp-card" id="c${i}" onclick="selectEmp(${i})">
+            <div class="emp-name">${e.name}</div>
+            <div class="emp-id">ID: ${e.idNo || '—'}</div>
+        </div>`).join('');
+        }
+
+        function selectEmp(idx) {
+            document.querySelectorAll('.emp-card').forEach((c, i) => c.classList.toggle('active', i === idx));
+            currentIdx = idx;
+            document.getElementById('previewArea').innerHTML = buildPayslip(allEmployees[idx]);
+        }
+
+        function v(val) { return val || ''; }
+
+        /* ═══════════════════════════════════════════════════════════
+           BUILD PAYSLIP HTML  — matches reference image layout
+           ═══════════════════════════════════════════════════════════ */
+        function buildPayslip(e) {
+            const laborRowsHtml = e.laborItems.map(item => `
+        <tr>
+            <td>${v(item.lbl)}</td>
+            <td class="r">${v(item.hrs)}</td>
+            <td class="r">${v(item.amt)}</td>
+        </tr>`).join('');
+
+            return `<div class="payslip">
+
+    <div class="ps-title">GGC SERVICES INC.</div>
+
+    <table class="ps-top">
+        <tr>
+            <td style="width:38%">
+                <span class="lbl">NAME :</span>
+                <span style="font-weight:bold; margin-left:4px;">${v(e.name)}</span>
+            </td>
+            <td style="width:38%">
+                <span class="lbl">DIV-DEPT :</span>
+                <span style="margin-left:4px;">${v(e.divDept)}</span>
+                <span style="margin-left:10px;">${v(e.serv2)}</span>
+            </td>
+            <td style="width:24%; text-align:right; font-size:7.5px; color:#444;">${v(e.dateStamp)}</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="lbl">IDNO # :</span>
+                <span style="margin-left:4px;">${v(e.idNo)}</span>
+            </td>
+            <td colspan="2">
+                <span class="lbl">PERIOD :</span>
+                <span style="margin-left:4px;">${v(e.periodNum)}</span>
+                <span style="margin-left:8px;">${v(e.periodDate)}</span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="ps-ids">
+        <tr>
+            <td style="width:12%"><b>TIN :</b></td>
+            <td style="width:22%">${v(e.tinNum)}</td>
+            <td style="width:12%"><b>SSS # :</b></td>
+            <td style="width:18%">${v(e.sssNum)}</td>
+            <td style="width:12%"><b>PHTH # :</b></td>
+            <td style="width:24%">${v(e.phthNum)}</td>
+        </tr>
+        <tr>
+            <td></td><td></td>
+            <td><b>HDMF # :</b></td>
+            <td colspan="3">${v(e.hdmfNum)}</td>
+        </tr>
+    </table>
+
+    <table class="ps-rate">
+        <tr>
+            <td style="width:42%"><b>RATE :</b> ${v(e.rate)} &nbsp;&nbsp;<b>/ Multiple –</b> R</td>
+            <td style="width:33%"><b>ACCT# :</b> ${v(e.acct)}</td>
+            <td style="width:25%; text-align:right"><b>TAXCODE :</b> ${v(e.taxCode)}</td>
+        </tr>
+    </table>
+
+    <table class="ps-body">
+        <thead>
+            <tr>
+                <th style="width:27%">LABOR HOURS INCOME</th>
+                <th style="width:19%">TAXABLE EARN/<br>ALLOWANCES</th>
+                <th style="width:22%">DEDUCTIONS</th>
+                <th style="width:32%">LEAVE BALANCE</th>
+            </tr>
+        </thead>
+        <tbody><tr style="vertical-align:top">
+
+            <!-- COL 1: Labor Hours -->
+            <td><table class="inner">
+                <tr>
+                    <td class="hdr" style="width:48%">DESCRIPTION</td>
+                    <td class="hdr r" style="width:24%">HRS</td>
+                    <td class="hdr r" style="width:28%">AMOUNT</td>
+                </tr>
+                <tr><td colspan="3" style="font-style:italic;color:#666;font-size:7.5px;border-bottom:0.5px solid #aaa;">Holiday Pay</td></tr>
+                ${laborRowsHtml}
+                <tr class="total">
+                    <td colspan="2">TOTAL – A =</td>
+                    <td class="r">${v(e.totalA)}</td>
+                </tr>
+            </table></td>
+
+            <!-- COL 2: Taxable + Non-taxable + Loan (spaced per reference image) -->
+            <td><table class="inner" style="height:100%;">
+
+                <!-- TAXABLE EARN/ALLOWANCES section -->
+                <tr>
+                    <td colspan="2" class="hdr" style="font-size:7.5px; padding:3px; text-align:center; border-bottom:1px solid #000;">
+                        TAXABLE EARN/ALLOWANCES
+                    </td>
+                </tr>
+                <tr style="height:14px;">
+                    <td style="padding:3px 4px;">Holiday Pay</td>
+                    <td class="r" style="padding:3px 4px;"></td>
+                </tr>
+                <tr style="height:18px;">
+                    <td style="padding:4px 4px 2px 4px;">ADDBACK</td>
+                    <td class="r" style="padding:4px 4px 2px 4px;">${v(e.addback)}</td>
+                </tr>
+                <tr style="height:8px;"><td colspan="2"></td></tr>
+                <tr class="total" style="border-top:1px solid #000; border-bottom:1px solid #000;">
+                    <td style="padding:3px 4px;">TOTAL &ndash; B =</td>
+                    <td class="r" style="padding:3px 4px;">${v(e.totalB)}</td>
+                </tr>
+
+                <!-- NTAXABLE EARN/ALLOWANCES section -->
+                <tr>
+                    <td colspan="2" class="hdr" style="font-size:7.5px; padding:3px; text-align:center; border-bottom:1px solid #000; border-top:1px solid #aaa;">
+                        NTAXABLE EARN/ALLOWANCES
+                    </td>
+                </tr>
+                <tr style="height:18px;">
+                    <td style="padding:4px 4px 2px 4px;">COLA</td>
+                    <td class="r" style="padding:4px 4px 2px 4px;">${v(e.cola)}</td>
+                </tr>
+                <tr style="height:18px;">
+                    <td style="padding:2px 4px 4px 4px;">13TH</td>
+                    <td class="r" style="padding:2px 4px 4px 4px;">${v(e.thirteenth)}</td>
+                </tr>
+                <tr class="total" style="border-top:1px solid #000; border-bottom:1px solid #000;">
+                    <td style="padding:3px 4px;">TOTAL &ndash; C =</td>
+                    <td class="r" style="padding:3px 4px;">${v(e.totalC)}</td>
+                </tr>
+
+                <!-- LOAN sub-section -->
+                <tr>
+                    <td colspan="2" class="hdr" style="font-size:7.5px; padding:3px; text-align:center; border-bottom:0.5px solid #999; border-top:1px solid #aaa;">
+                        LOAN
+                    </td>
+                </tr>
+                <tr><td colspan="2" style="padding:3px 4px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:8px;">
+                        <tr>
+                            <th style="text-align:left; font-weight:bold; font-size:7.5px; padding:1px 0;">LOAN</th>
+                            <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:1px 0;">PMT</th>
+                            <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:1px 0;">BAL</th>
+                        </tr>
+                        <tr style="height:14px;">
+                            <td>HDMF-H</td>
+                            <td style="text-align:right">${v(e.hdmfHPmt)}</td>
+                            <td></td>
+                        </tr>
+                        <tr style="height:14px;">
+                            <td>HDMF-S</td>
+                            <td style="text-align:right">${v(e.hdmfSPmt)}</td>
+                            <td></td>
+                        </tr>
+                        <tr style="height:14px;">
+                            <td>SSS-C</td>
+                            <td style="text-align:right">${v(e.sssCPmt)}</td>
+                            <td></td>
+                        </tr>
+                    </table>
+                </td></tr>
+
+            </table></td>
+
+            <!-- COL 3: Deductions (spaced per image4) -->
+            <td><table class="inner" style="height:100%;">
+                <tr>
+                    <td colspan="2" class="hdr" style="font-size:7.5px; padding:3px; text-align:center; border-bottom:1px solid #000;">
+                        DEDUCTIONS
+                    </td>
+                </tr>
+                ${[
+                    ['SSS PREMIUM', e.sssPrem],
+                    ['PHEALTH PREMIUM', e.phthPrem],
+                    ['HDMF PREMIUM', e.hdmfPrem],
+                    ['TAX WITHHELD', e.taxWith],
+                    ['SSS SAL-LOAN', e.sssSalLoan],
+                    ['SSS CAL-LOAN', e.sssCalLoan],
+                    ['HDMF SAL-LOAN', e.hdmfSalLoan],
+                    ['HDMF HOU-LOAN', e.hdmfHouLoan],
+                    ['COMP REG-LOAN', e.compLoan],
+                    ['COMP OTH-LOAN', e.compOthLoan],
+                    ['MULTIPLE OTHER', e.multiOther],
+                    ['SHARED BENEFITS', e.sharedBen],
+                    ['SALARY ADVANCES', e.salaryAdv],
+                ].map(([l, val]) => `
+                    <tr style="height:16px;">
+                        <td style="padding:2px 4px;">${l}</td>
+                        <td class="r" style="padding:2px 4px;">${v(val)}</td>
+                    </tr>`).join('')}
+                <tr style="height:8px;"><td colspan="2"></td></tr>
+                <tr class="total" style="border-top:1px solid #000; border-bottom:1px solid #000;">
+                    <td style="padding:3px 4px;">TOTAL &ndash; D =</td>
+                    <td class="r" style="padding:3px 4px;">${v(e.totalD)}</td>
+                </tr>
+            </table></td>
+
+            <!-- COL 4: Leave Balance + NET -->
+            <td><table class="inner">
+                <tr><td colspan="2" class="hdr">LEAVE BALANCE</td></tr>
+                <tr><td>VL</td> <td class="r">${v(e.vlBal)}</td></tr>
+                <tr><td>SL</td> <td class="r">${v(e.slBal)}</td></tr>
+                <tr><td>DOC</td><td class="r">${v(e.docBal)}</td></tr>
+                <tr><td colspan="2" class="hdr">LEAVE w/PAY</td></tr>
+                <tr>
+                    <td style="font-size:7.5px;font-weight:bold;">HOUR</td>
+                    <td class="r" style="font-size:7.5px;font-weight:bold;">AMOUNT</td>
+                </tr>
+                <tr><td>&nbsp;</td><td></td></tr>
+            </table>
+            <div class="net-box">
+                <div class="net-label">NET: A+B+C.D</div>
+                <div class="net-amt">${v(e.netPay)}</div>
+            </div>
+            </td>
+
+        </tr></tbody>
+    </table>
+    </div>`;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           DOWNLOAD ALL as a single paginated HTML file
+           ═══════════════════════════════════════════════════════════ */
+        function downloadAll() {
+            if (!allEmployees.length) { alert('No data to download.'); return; }
+            const style = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
+            const pages = allEmployees.map((emp, i) =>
+                `<div${i > 0 ? ' style="page-break-before:always;"' : ''}>${buildPayslip(emp)}</div>`
+            ).join('\n');
+            const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>GGC Payslips – All Employees</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#f5f5f5;padding:20px;}
+@page{size:landscape;margin:8mm;}
+@media print{body{background:white;padding:0;}}
+${style}
+.payslip{margin-bottom:20px;}
+</style></head><body>${pages}</body></html>`;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `GGC_Payslips_${new Date().toISOString().slice(0, 10)}.html`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
