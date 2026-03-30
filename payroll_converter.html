@@ -512,6 +512,57 @@
             return m ? m[1] : '';
         }
 
+        function grabLoanRow(block, labelRx) {
+            const pos = block.search(labelRx);
+            if (pos < 0) return { pay: '', pmt: '', bal: '' };
+            
+            // Look up to 1500 characters to make sure we cover all nested tags
+            let chunk = block.slice(pos, pos + 1500); 
+            
+            // Try formatting with ALIGN=RIGHT in the first row
+            let tr1End = chunk.indexOf('</TR>');
+            if (tr1End > 0) {
+                let tr1 = chunk.slice(0, tr1End);
+                let alignNums = [...tr1.matchAll(/ALIGN=RIGHT[^>]*>.*?(-?[\d,]+\.\d{2})<\/DIV>/gi)];
+                if (alignNums.length > 0) {
+                    return {
+                        pay: alignNums[0] ? alignNums[0][1] : '',
+                        pmt: alignNums[1] ? alignNums[1][1] : '',
+                        bal: alignNums[2] ? alignNums[2][1] : ''
+                    };
+                }
+                
+                // If no ALIGN=RIGHT, try the next row
+                let tr2Start = tr1End + 1;
+                let tr2End = chunk.indexOf('</TR>', tr2Start);
+                if (tr2End > tr2Start) {
+                    let tr2 = chunk.slice(tr2Start, tr2End);
+                    let alignNums2 = [...tr2.matchAll(/ALIGN=RIGHT[^>]*>.*?(-?[\d,]+\.\d{2})<\/DIV>/gi)];
+                    if (alignNums2.length > 0) {
+                        return {
+                            pay: alignNums2[0] ? alignNums2[0][1] : '',
+                            pmt: alignNums2[1] ? alignNums2[1][1] : '',
+                            bal: alignNums2[2] ? alignNums2[2][1] : ''
+                        };
+                    }
+                }
+            }
+            
+            // Ultimate fallback: Just scan up to the next label and take ALL decimals
+            let sub = chunk.slice(10);
+            let nextLabelOffset = sub.search(/HDMF[\s\-]H\b|HDMF[\s\-]S\b|SSS[\s\-]S\b|SSS[\s\-]C\b|TOTAL|<\/TABLE>/i);
+            if (nextLabelOffset > 0) {
+                chunk = chunk.slice(0, nextLabelOffset + 10);
+            }
+            let clean = chunk.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            let flatNums = [...clean.matchAll(/-?[\d,]+\.\d{2}/g)];
+            return {
+                pay: flatNums[0] ? flatNums[0][0] : '',
+                pmt: flatNums[1] ? flatNums[1][0] : '',
+                bal: flatNums[2] ? flatNums[2][0] : ''
+            };
+        }
+
         /* ═══════════════════════════════════════════════════════════
            PARSE ONE EMPLOYEE BLOCK
            ═══════════════════════════════════════════════════════════ */
@@ -696,11 +747,12 @@
             const netPay = netM ? netM[1] : '';
 
             /* ─────────────────────────────────────────────────────
-               LOAN PAYMENTS  (HDMF-H, HDMF-S, SSS-C)
+               LOAN PAYMENTS
                ───────────────────────────────────────────────────── */
-            const hdmfHPmt = grabSameRow(block, /HDMF[\s\-]H\b/i);
-            const hdmfSPmt = grabSameRow(block, /HDMF[\s\-]S\b/i);
-            const sssCPmt = grabSameRow(block, /SSS[\s\-]C\b/i);
+            const hdmfH = grabLoanRow(block, /HDMF[\s\-]H\b/i);
+            const hdmfS = grabLoanRow(block, /HDMF[\s\-]S\b/i);
+            const sssS = grabLoanRow(block, /SSS[\s\-]S\b/i);
+            const sssC = grabLoanRow(block, /SSS[\s\-]C\b/i);
 
             return {
                 name, idNo, divDept, serv2,
@@ -715,7 +767,7 @@
                 compLoan, compOthLoan, multiOther, sharedBen, salaryAdv, totalD,
                 vlBal, slBal, docBal,
                 netPay,
-                hdmfHPmt, hdmfSPmt, sssCPmt
+                hdmfH, hdmfS, sssS, sssC
             };
         }
 
@@ -801,7 +853,7 @@
         <tbody><tr style="vertical-align:top">
 
             <!-- COL 1: Labor Hours -->
-            <td><table class="inner">
+            <td rowspan="2"><table class="inner">
                 <tr>
                     <td class="hdr" style="width:48%">DESCRIPTION</td>
                     <td class="hdr r" style="width:24%">HRS</td>
@@ -856,38 +908,6 @@
                     <td style="padding:3px 4px;">TOTAL &ndash; C =</td>
                     <td class="r" style="padding:3px 4px;">${v(e.totalC)}</td>
                 </tr>
-
-                <!-- LOAN sub-section -->
-                <tr>
-                    <td colspan="2" class="hdr" style="font-size:7.5px; padding:3px; text-align:center; border-bottom:0.5px solid #999; border-top:1px solid #aaa;">
-                        LOAN
-                    </td>
-                </tr>
-                <tr><td colspan="2" style="padding:3px 4px;">
-                    <table style="width:100%; border-collapse:collapse; font-size:8px;">
-                        <tr>
-                            <th style="text-align:left; font-weight:bold; font-size:7.5px; padding:1px 0;">LOAN</th>
-                            <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:1px 0;">PMT</th>
-                            <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:1px 0;">BAL</th>
-                        </tr>
-                        <tr style="height:14px;">
-                            <td>HDMF-H</td>
-                            <td style="text-align:right">${v(e.hdmfHPmt)}</td>
-                            <td></td>
-                        </tr>
-                        <tr style="height:14px;">
-                            <td>HDMF-S</td>
-                            <td style="text-align:right">${v(e.hdmfSPmt)}</td>
-                            <td></td>
-                        </tr>
-                        <tr style="height:14px;">
-                            <td>SSS-C</td>
-                            <td style="text-align:right">${v(e.sssCPmt)}</td>
-                            <td></td>
-                        </tr>
-                    </table>
-                </td></tr>
-
             </table></td>
 
             <!-- COL 3: Deductions (spaced per image4) -->
@@ -924,7 +944,7 @@
             </table></td>
 
             <!-- COL 4: Leave Balance + NET -->
-            <td><table class="inner">
+            <td rowspan="2"><table class="inner">
                 <tr><td colspan="2" class="hdr">LEAVE BALANCE</td></tr>
                 <tr><td>VL</td> <td class="r">${v(e.vlBal)}</td></tr>
                 <tr><td>SL</td> <td class="r">${v(e.slBal)}</td></tr>
@@ -942,7 +962,54 @@
             </div>
             </td>
 
-        </tr></tbody>
+        </tr>
+        <tr>
+            <!-- LOAN SECTION -->
+            <td colspan="2" style="border-top: 1px solid #000; padding-bottom: 8px;">
+                <table style="width:100%; border-collapse:collapse; font-size:8px;">
+                    <tr>
+                        <th colspan="2" style="text-align:left; font-weight:bold; font-size:7.5px; padding:3px 4px; border-bottom:1px solid #000;">LOAN</th>
+                        <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:3px 4px; border-bottom:1px solid #000;">PAYABLE</th>
+                        <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:3px 4px; border-bottom:1px solid #000;">PAYMENT</th>
+                        <th style="text-align:right; font-weight:bold; font-size:7.5px; padding:3px 4px; border-bottom:1px solid #000;">BALANCE</th>
+                        <th style="text-align:left; font-weight:bold; font-size:7.5px; padding:3px 8px; border-bottom:1px solid #000;">NOTES:</th>
+                    </tr>
+                    <tr style="height:16px;">
+                        <td style="padding:2px 4px; width:45px;">HDMF-H</td>
+                        <td style="padding:2px; width:15px; text-align:center;">:</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.hdmfH.pay)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.hdmfH.pmt)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.hdmfH.bal)}</td>
+                        <td></td>
+                    </tr>
+                    <tr style="height:16px;">
+                        <td style="padding:2px 4px;">HDMF-S</td>
+                        <td style="padding:2px; text-align:center;">:</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.hdmfS.pay)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.hdmfS.pmt)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.hdmfS.bal)}</td>
+                        <td></td>
+                    </tr>
+                    <tr style="height:16px;">
+                        <td style="padding:2px 4px;">SSS-S</td>
+                        <td style="padding:2px; text-align:center;">:</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.sssS.pay)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.sssS.pmt)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.sssS.bal)}</td>
+                        <td></td>
+                    </tr>
+                    <tr style="height:16px;">
+                        <td style="padding:2px 4px;">SSS-C</td>
+                        <td style="padding:2px; text-align:center;">:</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.sssC.pay)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.sssC.pmt)}</td>
+                        <td style="text-align:right; padding:2px 4px;">${v(e.sssC.bal)}</td>
+                        <td></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        </tbody>
     </table>
     </div>`;
         }
