@@ -14,9 +14,11 @@
 
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            background: linear-gradient(135deg, #092014, #0f4025, #125530);
             min-height: 100vh;
             padding: 16px;
+            display: flex;
+            flex-direction: column;
         }
 
         .app-header {
@@ -33,14 +35,26 @@
             margin-bottom: 16px;
         }
 
+        .logos {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logos img {
+            height: 45px;
+            object-fit: contain;
+        }
+
         .app-header h1 {
             color: #fff;
             font-size: 20px;
             font-weight: 700;
+            margin-left: 5px;
         }
 
         .app-header h1 span {
-            color: #4fc3f7;
+            color: #f6d365;
         }
 
         .controls {
@@ -94,85 +108,23 @@
 
         .workspace {
             display: flex;
-            gap: 14px;
-            height: calc(100vh - 108px);
-        }
-
-        .panel {
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            display: flex;
             flex-direction: column;
+            flex: 1;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            transition: all 0.3s ease;
             overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+            position: relative;
         }
 
-        .panel-left {
-            flex: 0 0 260px;
+        .workspace.drag-active {
+            border-color: #f6d365;
+            background: rgba(246, 211, 101, 0.1);
         }
 
-        .panel-right {
-            flex: 1;
-        }
-
-        .panel-header {
-            padding: 10px 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 11px;
-            font-weight: 700;
-            color: #81d4fa;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .badge {
-            background: #1565c0;
-            color: #fff;
-            border-radius: 20px;
-            padding: 1px 8px;
-            font-size: 11px;
-        }
-
-        .emp-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        .emp-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            border-radius: 8px;
-            padding: 8px 11px;
-            margin-bottom: 7px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .emp-card:hover {
-            background: rgba(79, 195, 247, 0.12);
-            border-color: #4fc3f7;
-        }
-
-        .emp-card.active {
-            background: rgba(79, 195, 247, 0.2);
-            border-color: #4fc3f7;
-        }
-
-        .emp-name {
-            color: #e1f5fe;
-            font-size: 11.5px;
-            font-weight: 600;
-        }
-
-        .emp-id {
-            color: #78909c;
-            font-size: 10px;
-            margin-top: 2px;
+        .workspace.has-preview {
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .preview-scroll {
@@ -182,14 +134,51 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
+            height: 100%;
         }
 
-        .no-data {
-            color: rgba(255, 255, 255, 0.35);
-            font-style: italic;
+        .empty-state {
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.6);
             text-align: center;
-            margin-top: 60px;
-            font-size: 13px;
+            gap: 16px;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            opacity: 0.8;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        .empty-state h2 {
+            font-weight: 600;
+            color: #fff;
+            font-size: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        .app-footer {
+            margin-top: 16px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .app-footer span {
+            color: #f6d365;
+            font-weight: 500;
         }
 
         ::-webkit-scrollbar {
@@ -345,7 +334,8 @@
             }
 
             .app-header,
-            .workspace {
+            .workspace,
+            .app-footer {
                 display: none;
             }
         }
@@ -355,7 +345,11 @@
 <body>
 
     <div class="app-header">
-        <h1>🧾 GGC <span>Payroll</span> Converter</h1>
+        <div class="logos">
+            <img src="asset/ggclogo.png" alt="GGC Logo">
+            <img src="asset/EVSU_Official_Logo.png" alt="EVSU Logo">
+            <h1>🧾 GGC <span>Payroll</span> Converter</h1>
+        </div>
         <div class="controls">
             <button class="btn btn-upload" onclick="triggerUpload()">📤 Upload .htm File</button>
             <button class="btn btn-download" id="downloadBtn" onclick="downloadAll()" disabled>💾 Download All
@@ -364,20 +358,22 @@
         <input type="file" id="fileInput" accept=".htm,.html" onchange="handleUpload(event)">
     </div>
 
-    <div class="workspace">
-        <div class="panel panel-left">
-            <div class="panel-header">📋 Employees <span class="badge" id="empCount">0</span></div>
-            <div class="emp-list" id="empList">
-                <div class="no-data">Upload a .htm file</div>
-            </div>
-        </div>
-        <div class="panel panel-right">
-            <div class="panel-header">👁 Payslip Preview</div>
-            <div class="preview-scroll" id="previewArea">
-                <div class="no-data">Select an employee to preview</div>
+    <div class="workspace" id="dropZone">
+        <div class="preview-scroll" id="previewArea">
+            <div class="empty-state">
+                <div class="upload-icon">📄</div>
+                <h2>Drag & Drop your .htm file here</h2>
+                <p>or click the upload button above to browse</p>
+                <div style="font-size:12px; opacity:0.6; margin-top:20px;">Supports multi-employee batch conversion
+                </div>
             </div>
         </div>
     </div>
+
+    <footer class="app-footer">
+        Created by interns of <span>EVSU</span>: Klenth Joeseph D. Cañedo, Abdullah Adel Rante, Jerson Jr L. Donasco,
+        and Christian Gatela
+    </footer>
 
     <script>
         'use strict';
@@ -390,17 +386,68 @@
         function handleUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
+            document.getElementById('dropZone').classList.remove('drag-active');
+
             const reader = new FileReader();
             reader.onload = ev => {
                 allEmployees = parseHTM(ev.target.result);
-                renderList();
-                document.getElementById('empCount').textContent = allEmployees.length;
+
                 if (allEmployees.length > 0) {
-                    selectEmp(0);
+                    document.getElementById('dropZone').classList.add('has-preview');
+                    document.getElementById('previewArea').innerHTML = buildPayslip(allEmployees[0]);
                     document.getElementById('downloadBtn').disabled = false;
+                } else {
+                    document.getElementById('previewArea').innerHTML = `
+                        <div class="empty-state">
+                            <div class="upload-icon" style="font-size:40px;">⚠️</div>
+                            <h2>No valid data found in this file</h2>
+                            <p>Please upload a valid payroll .htm file.</p>
+                        </div>`;
                 }
             };
             reader.readAsText(file, 'windows-1252');
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           DRAG AND DROP HANDLERS
+           ═══════════════════════════════════════════════════════════ */
+        const dropZone = document.getElementById('dropZone');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('drag-active');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('drag-active');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length) {
+                document.getElementById('fileInput').files = files;
+                handleUpload({ target: { files: files } });
+            }
         }
 
         /* ═══════════════════════════════════════════════════════════
@@ -675,22 +722,6 @@
         /* ═══════════════════════════════════════════════════════════
            UI helpers
            ═══════════════════════════════════════════════════════════ */
-        function renderList() {
-            const el = document.getElementById('empList');
-            if (!allEmployees.length) { el.innerHTML = '<div class="no-data">No employees found</div>'; return; }
-            el.innerHTML = allEmployees.map((e, i) => `
-        <div class="emp-card" id="c${i}" onclick="selectEmp(${i})">
-            <div class="emp-name">${e.name}</div>
-            <div class="emp-id">ID: ${e.idNo || '—'}</div>
-        </div>`).join('');
-        }
-
-        function selectEmp(idx) {
-            document.querySelectorAll('.emp-card').forEach((c, i) => c.classList.toggle('active', i === idx));
-            currentIdx = idx;
-            document.getElementById('previewArea').innerHTML = buildPayslip(allEmployees[idx]);
-        }
-
         function v(val) { return val || ''; }
 
         /* ═══════════════════════════════════════════════════════════
