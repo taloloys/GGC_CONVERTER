@@ -81,6 +81,16 @@
             color: #fff;
         }
 
+        .btn-back {
+            background: #263238;
+            color: #fff;
+        }
+
+        .btn-back:hover {
+            background: #1b2327;
+            transform: translateY(-1px);
+        }
+
         .btn-upload:hover {
             background: #1b5e20;
             transform: translateY(-1px);
@@ -116,6 +126,41 @@
             overflow: hidden;
             background: rgba(255, 255, 255, 0.03);
             position: relative;
+        }
+
+        .file-meta {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 12px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            min-height: 40px;
+        }
+
+        .file-meta.visible {
+            display: flex;
+        }
+
+        .file-chip {
+            max-width: 100%;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.88);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-chip.empty {
+            color: rgba(255, 255, 255, 0.55);
+            border-style: dashed;
         }
 
         .workspace.drag-active {
@@ -351,6 +396,7 @@
             <h1>🧾 GGC <span>Payroll</span> Converter</h1>
         </div>
         <div class="controls">
+            <button class="btn btn-back" onclick="goBack()">← Back to Landing Page</button>
             <button class="btn btn-upload" onclick="triggerUpload()">📤 Upload New File</button>
             <button class="btn btn-download" id="downloadBtn" onclick="downloadAll()" disabled>💾 Download All
                 Payslips</button>
@@ -359,6 +405,9 @@
     </div>
 
     <div class="workspace" id="dropZone">
+        <div class="file-meta">
+            <div class="file-chip empty" id="fileNameDisplay">No file selected</div>
+        </div>
         <div class="preview-scroll" id="previewArea">
             <div class="empty-state">
                 <div class="upload-icon">📄</div>
@@ -381,22 +430,48 @@
         let allEmployees = [];
         let currentIdx = 0;
 
+        function goBack() { window.location.href = 'index.html'; }
+
         function triggerUpload() { document.getElementById('fileInput').click(); }
+
+        function setFileName(name) {
+            const el = document.getElementById('fileNameDisplay');
+            if (!name) {
+                el.textContent = 'No file selected';
+                el.classList.add('empty');
+                return;
+            }
+            el.textContent = name;
+            el.classList.remove('empty');
+        }
+
+        function showFileMeta(name) {
+            setFileName(name);
+            document.querySelector('.file-meta').classList.add('visible');
+        }
+
+        function hideFileMeta() {
+            setFileName('');
+            document.querySelector('.file-meta').classList.remove('visible');
+        }
 
         function handleUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
             document.getElementById('dropZone').classList.remove('drag-active');
+            hideFileMeta();
 
             const reader = new FileReader();
             reader.onload = ev => {
                 allEmployees = parseHTM(ev.target.result);
 
                 if (allEmployees.length > 0) {
+                    showFileMeta(file.name);
                     document.getElementById('dropZone').classList.add('has-preview');
                     document.getElementById('previewArea').innerHTML = buildPayslip(allEmployees[0]);
                     document.getElementById('downloadBtn').disabled = false;
                 } else {
+                    hideFileMeta();
                     document.getElementById('previewArea').innerHTML = `
                         <div class="empty-state">
                             <div class="upload-icon" style="font-size:40px;">⚠️</div>
