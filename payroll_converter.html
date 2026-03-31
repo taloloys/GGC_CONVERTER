@@ -134,8 +134,10 @@
             padding: 8px 12px;
             display: none;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            gap: 10px;
             min-height: 40px;
+            flex-wrap: wrap;
         }
 
         .file-meta.visible {
@@ -143,7 +145,7 @@
         }
 
         .file-chip {
-            max-width: 100%;
+            max-width: min(100%, 420px);
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -163,6 +165,50 @@
             border-style: dashed;
         }
 
+        .preview-controls {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preview-controls.visible {
+            display: flex;
+        }
+
+        .preview-controls label {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .preview-select {
+            min-width: 220px;
+            max-width: 320px;
+            background: rgba(0, 0, 0, 0.25);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            padding: 6px 9px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .mini-btn {
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .mini-btn:hover {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
         .workspace.drag-active {
             border-color: #e61c24;
             background: rgba(230, 28, 36, 0.1);
@@ -180,6 +226,26 @@
             justify-content: center;
             align-items: flex-start;
             height: 100%;
+        }
+
+        .preview-stack {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .preview-page {
+            width: fit-content;
+        }
+
+        .preview-page-name {
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 0 0 4px 2px;
+            letter-spacing: 0.2px;
         }
 
         .empty-state {
@@ -407,6 +473,11 @@
     <div class="workspace" id="dropZone">
         <div class="file-meta">
             <div class="file-chip empty" id="fileNameDisplay">No file selected</div>
+            <div class="preview-controls" id="previewControls">
+                <label for="employeeSelect">Preview</label>
+                <select class="preview-select" id="employeeSelect" onchange="renderPreview()"></select>
+                <button type="button" class="mini-btn" id="togglePreviewBtn" onclick="togglePreviewMode()">Show All</button>
+            </div>
         </div>
         <div class="preview-scroll" id="previewArea">
             <div class="empty-state">
@@ -429,6 +500,7 @@
 
         let allEmployees = [];
         let currentIdx = 0;
+        let previewMode = 'single';
 
         function goBack() { window.location.href = 'index.html'; }
 
@@ -453,6 +525,46 @@
         function hideFileMeta() {
             setFileName('');
             document.querySelector('.file-meta').classList.remove('visible');
+            document.getElementById('previewControls').classList.remove('visible');
+            document.getElementById('employeeSelect').innerHTML = '';
+            previewMode = 'single';
+            document.getElementById('togglePreviewBtn').textContent = 'Show All';
+        }
+
+        function setupPreviewControls() {
+            const select = document.getElementById('employeeSelect');
+            select.innerHTML = allEmployees
+                .map((emp, idx) => `<option value="${idx}">${emp.name || `Employee ${idx + 1}`}</option>`)
+                .join('');
+            select.value = '0';
+            document.getElementById('previewControls').classList.add('visible');
+            previewMode = 'single';
+            document.getElementById('togglePreviewBtn').textContent = 'Show All';
+        }
+
+        function renderPreview() {
+            const previewArea = document.getElementById('previewArea');
+            if (!allEmployees.length) return;
+
+            if (previewMode === 'all') {
+                const pages = allEmployees.map((emp, idx) => `
+                    <div class="preview-page">
+                        <div class="preview-page-name">${v(emp.name) || `Employee ${idx + 1}`}</div>
+                        ${buildPayslip(emp)}
+                    </div>`).join('');
+                previewArea.innerHTML = `<div class="preview-stack">${pages}</div>`;
+                return;
+            }
+
+            const selectedIndex = Number(document.getElementById('employeeSelect').value) || 0;
+            currentIdx = selectedIndex;
+            previewArea.innerHTML = buildPayslip(allEmployees[selectedIndex]);
+        }
+
+        function togglePreviewMode() {
+            previewMode = previewMode === 'single' ? 'all' : 'single';
+            document.getElementById('togglePreviewBtn').textContent = previewMode === 'all' ? 'Show One' : 'Show All';
+            renderPreview();
         }
 
         function handleUpload(e) {
@@ -467,11 +579,14 @@
 
                 if (allEmployees.length > 0) {
                     showFileMeta(file.name);
+                    setupPreviewControls();
                     document.getElementById('dropZone').classList.add('has-preview');
-                    document.getElementById('previewArea').innerHTML = buildPayslip(allEmployees[0]);
+                    renderPreview();
                     document.getElementById('downloadBtn').disabled = false;
                 } else {
                     hideFileMeta();
+                    document.getElementById('dropZone').classList.remove('has-preview');
+                    document.getElementById('downloadBtn').disabled = true;
                     document.getElementById('previewArea').innerHTML = `
                         <div class="empty-state">
                             <div class="upload-icon" style="font-size:40px;">⚠️</div>
@@ -780,9 +895,10 @@
                TOTALS & ALLOWANCES  (same TR-skip pattern)
                ───────────────────────────────────────────────────── */
             const totalA = grabNextRow(block, /TOTAL\s*-\s*A\s*=/i);
-            // ADDBACK, COLA, 13TH — label + value are in the SAME <TR>
+            // ADDBACK, SILP, COLA, 13TH — labels + values are in the SAME <TR>
             const addback = grabSameRow(block, /ADDBACK/i);
             const totalB = grabNextRow(block, /TOTAL\s*-\s*B\s*=/i);
+            const silp = grabSameRow(block, /\bSILP\b/i);
             const cola = grabSameRow(block, /\bCOLA\b/i);
             const thirteenth = grabSameRow(block, /\b13TH\b/i);
             const totalC = grabNextRow(block, /TOTAL\s*-\s*C\s*=/i);
@@ -839,7 +955,7 @@
                 rate, acct, taxCode,
                 laborItems,
                 totalA, addback, totalB,
-                cola, thirteenth, totalC,
+                silp, cola, thirteenth, totalC,
                 sssPrem, phthPrem, hdmfPrem, taxWith,
                 sssSalLoan, sssCalLoan, hdmfSalLoan, hdmfHouLoan,
                 compLoan, compOthLoan, multiOther, sharedBen, salaryAdv, totalD,
@@ -937,7 +1053,6 @@
                     <td class="hdr r" style="width:24%">HRS</td>
                     <td class="hdr r" style="width:28%">AMOUNT</td>
                 </tr>
-                <tr><td colspan="3" style="font-style:italic;color:#666;font-size:7.5px;border-bottom:0.5px solid #aaa;">Holiday Pay</td></tr>
                 ${laborRowsHtml}
                 <tr class="total">
                     <td colspan="2">TOTAL – A =</td>
@@ -975,8 +1090,12 @@
                     </td>
                 </tr>
                 <tr style="height:18px;">
-                    <td style="padding:4px 4px 2px 4px;">COLA</td>
-                    <td class="r" style="padding:4px 4px 2px 4px;">${v(e.cola)}</td>
+                    <td style="padding:4px 4px 2px 4px;">SILP</td>
+                    <td class="r" style="padding:4px 4px 2px 4px;">${v(e.silp)}</td>
+                </tr>
+                <tr style="height:18px;">
+                    <td style="padding:2px 4px 2px 4px;">COLA</td>
+                    <td class="r" style="padding:2px 4px 2px 4px;">${v(e.cola)}</td>
                 </tr>
                 <tr style="height:18px;">
                     <td style="padding:2px 4px 4px 4px;">13TH</td>
